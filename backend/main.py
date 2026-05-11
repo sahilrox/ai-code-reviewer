@@ -17,11 +17,14 @@ app = FastAPI(title="AI Code Reviewer")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://ai-code-reviewer-sahilrox.vercel.app",
+        "https://*.vercel.app"
+    ],
     allow_methods=["*"],
     allow_headers=["*"]
 )
-
 def verify_signature(payload: bytes, signature: str) -> bool:
     expected = "sha256=" + hmac.new(
         GITHUB_WEBHOOK_SECRET.encode(),

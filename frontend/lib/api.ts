@@ -20,6 +20,13 @@ export interface ReviewsResponse {
 }
 
 export const fetchReviews = async (): Promise<Review[]> => {
-  const { data } = await axios.get<ReviewsResponse>(`${API_BASE}/reviews`)
+  console.log('Fetching from:', API_BASE)
+  const { data } = await axios.get<ReviewsResponse>(`${API_BASE}/reviews`, {
+    timeout: 10000,
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  })
+  console.log('Got reviews:', data.reviews.length)
   return data.reviews
 }
