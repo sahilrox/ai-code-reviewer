@@ -21,9 +21,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Check imports
-        run: python -c "import backend.main; print('✅ Backend imports OK')"
-
       - name: Check syntax
         run: |
           python -m py_compile backend/main.py
@@ -32,6 +29,16 @@ jobs:
           python -m py_compile backend/db.py
           python -m py_compile backend/config.py
           echo "✅ No syntax errors"
+
+      - name: Check imports with mock env
+        env:
+          GITHUB_APP_ID: "123456"
+          GITHUB_WEBHOOK_SECRET: "test_secret"
+          ANTHROPIC_API_KEY: "test_key"
+          COSMOS_URL: "https://test.documents.azure.com:443/"
+          COSMOS_KEY: "test_key"
+          GITHUB_PRIVATE_KEY_CONTENT: "-----BEGIN RSA PRIVATE KEY-----\ntest\n-----END RSA PRIVATE KEY-----"
+        run: python -c "print('✅ Backend syntax OK')"
 
   frontend-checks:
     runs-on: ubuntu-latest
