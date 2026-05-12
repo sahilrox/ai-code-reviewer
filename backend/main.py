@@ -3,6 +3,7 @@ import hashlib
 import json
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from backend.config import GITHUB_WEBHOOK_SECRET
 from backend.github_client import (
     get_installation_token,
@@ -15,16 +16,15 @@ from backend.db import save_review, get_recent_reviews
 
 app = FastAPI(title="AI Code Reviewer")
 
+# Allow all origins explicitly
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://ai-code-reviewer-sahilrox.vercel.app",
-        "https://*.vercel.app"
-    ],
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
+
 def verify_signature(payload: bytes, signature: str) -> bool:
     expected = "sha256=" + hmac.new(
         GITHUB_WEBHOOK_SECRET.encode(),
@@ -52,11 +52,9 @@ async def github_webhook(request: Request):
         print(f"✅ PR event received: {repo} #{pr_number}")
 
         try:
-            # Step 1: Auth with GitHub
             token = await get_installation_token(installation_id)
             print(f"✅ Got installation token")
 
-            # Step 2: Fetch PR info
             details = await get_pr_details(repo, pr_number, token)
             print(f"✅ PR details: {details}")
 
@@ -67,12 +65,10 @@ async def github_webhook(request: Request):
                 print("⚠️ Empty diff, skipping review")
                 return {"status": "skipped"}
 
-            # Step 3: Send to Claude for review
             print(f"🤖 Sending diff to Claude...")
             comments = await review_diff(diff)
             print(f"✅ Claude returned {len(comments)} comments")
 
-            # Step 4: Post comments back to PR
             if comments:
                 await post_review(
                     repo_full_name=repo,
@@ -85,7 +81,6 @@ async def github_webhook(request: Request):
             else:
                 print("ℹ️ No comments to post")
 
-            # Step 5: Save to Cosmos DB
             await save_review(
                 repo=repo,
                 pr_number=pr_number,
@@ -103,10 +98,30 @@ async def github_webhook(request: Request):
 
 @app.get("/reviews")
 async def list_reviews():
-    """Dashboard API — returns recent reviews"""
     reviews = await get_recent_reviews()
-    return {"reviews": reviews}
+    return JSONResponse(
+        content={"reviews": reviews},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+@app.options("/reviews")
+async def reviews_options():
+    return JSONResponse(
+        content={},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy"}
+    return JSONResponse(
+        content={"status": "healthy"},
+        headers={"Access-Control-Allow-Origin": "*"}
+    )
